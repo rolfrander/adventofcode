@@ -1,3 +1,4 @@
+;; -*- mode: emacs-lisp -*-
 
 (defun count-parens (buffer)
   (with-current-buffer buffer
