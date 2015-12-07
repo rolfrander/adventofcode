@@ -45,21 +45,21 @@ int number_of_leading_zeroes(unsigned char* data)
   }
 }
 
-void print_md5(float time, unsigned char* input, unsigned char* output) 
+void print_md5(float time, unsigned char* input, unsigned char* output, int zeroes) 
 {
   int i;
   printf("%7.3f MD5(%-25.25s) = ", time, input);
   for(i=0; i<MD5_DIGEST_LENGTH; i++) {
     printf("%02x", output[i]);
   }
-  printf("\n");  
+  printf(" (%d zeroes)\n", zeroes);
 }
 
 void usage(char* program_name) 
 {
     printf("Computes the md5-hash of the prefix followed by a number formatted as\n");
-    printf("an ascii-string. Will stop when it finds a hash starting with 00000.\n");
-    printf("Usage: %s <prefix> <number-of-zeroes>\n", program_name);
+    printf("an ascii-string. \n");
+    printf("Usage: %s <prefix>\n", program_name);
 }
 
 void clock_start(struct timespec *pstart)
@@ -117,7 +117,7 @@ int main(int argc, char **argv)
     MD5(string, inputlen, result);
     zeroes = number_of_leading_zeroes(result);
     if(zeroes > maxzeroes) {
-      print_md5(clock_stop(&start), string, result);
+      print_md5(clock_stop(&start), string, result, zeroes);
       maxzeroes = zeroes;
     }
   } while(maxzeroes < 10);
