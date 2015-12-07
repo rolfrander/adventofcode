@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdbool.h>
 #include <openssl/md5.h>
 
 /*
@@ -10,39 +11,81 @@
  * compile with:
  * gcc day04.c -o day04 -lcrypto -lssl
  */
-#define BUFSZ 100
+const int BUFSZ = 100;
 
-int starts_with_five_zeroes(unsigned char* string) 
-{
-  return (string[0] == 0 &&
-	  string[1] == 0 &&
-	  (string[2] & 0xF0) == 0);
-}
-
-int starts_with_six_zeroes(unsigned char* string) 
-{
-  return (string[0] == 0 &&
-	  string[1] == 0 &&
-	  string[2] == 0);
-}
-
-void print_md5(unsigned char* input, unsigned char* output) 
+int starts_with_zeroes(unsigned char* string, int zcnt)
 {
   int i;
-  printf("MD5(%s) = ", input);
+  for(i=0; i<(zcnt >> 1); i++) {
+    if(string[i] != 0) {
+      return false;
+    }
+  }
+  
+  if((zcnt & 1) == 1) {
+    /* is odd: look at the first nibble of the next byte */
+    return (string[(zcnt >> 1)] & 0xf0) == 0;
+  }
+  return true;
+  
+}
+
+int number_of_leading_zeroes(unsigned char* data) 
+{
+  int i=0;
+  while(data[i] == 0) {
+    i++;
+  }
+  
+  if((data[i] & 0xF0) != 0) {
+    return i*2;
+  }
+  if((data[i] & 0x0F) != 0) {
+    return i*2+1;
+  }
+}
+
+void print_md5(float time, unsigned char* input, unsigned char* output) 
+{
+  int i;
+  printf("%7.3f MD5(%-25.25s) = ", time, input);
   for(i=0; i<MD5_DIGEST_LENGTH; i++) {
     printf("%02x", output[i]);
   }
   printf("\n");  
 }
 
+void usage(char* program_name) 
+{
+    printf("Computes the md5-hash of the prefix followed by a number formatted as\n");
+    printf("an ascii-string. Will stop when it finds a hash starting with 00000.\n");
+    printf("Usage: %s <prefix> <number-of-zeroes>\n", program_name);
+}
+
+void clock_start(struct timespec *pstart)
+{
+  clock_gettime(CLOCK_MONOTONIC, pstart);
+}
+
+float clock_stop(struct timespec *pstart)
+{
+  struct timespec stop;
+  clock_gettime(CLOCK_MONOTONIC, &stop);
+  long seconds  =  stop.tv_sec  - pstart->tv_sec;
+  long nanosec = (stop.tv_nsec - pstart->tv_nsec);
+  if(nanosec < 0) {
+    nanosec += 1000000000;
+    seconds -= 1;
+  }
+
+  return ((float)seconds) + ((float)nanosec / 1000000000.0);
+}
+
     
 int main(int argc, char **argv) 
 {
   if(argc != 2) {
-    printf("Computes the md5-hash of the prefix followed by a number formatted as\n");
-    printf("an ascii-string. Will stop when it finds a hash starting with 00000.\n");
-    printf("Usage: %s <prefix>\n", argv[0]);
+    usage(argv[0]);
     return 1;
   }
 
@@ -51,49 +94,33 @@ int main(int argc, char **argv)
   
   if(prefixlen > (BUFSZ-21)) {
     printf("Prefix too long\n");
+    usage(argv[0]);
     return 2;
   }
-  
+
+  int zeroes = 0;
+  int maxzeroes = 0;
   long i=0;
   unsigned char result[MD5_DIGEST_LENGTH];
   unsigned char string[BUFSZ];
   strcpy(string, prefix);
   unsigned char* write_num_at = string+prefixlen;
   int inputlen = 0;
-  int done5 = 0;
-  int done6 = 0;
   
   struct timespec start;
-  struct timespec stop;
-
-  clock_gettime(CLOCK_MONOTONIC, &start);
+  clock_start(&start);
   
   do {
     i++;
     inputlen = sprintf(write_num_at, "%ld", i);
     inputlen += prefixlen;
     MD5(string, inputlen, result);
-    if((done5 == 0) && starts_with_five_zeroes(result)) {
-      printf("part 1: ");
-      print_md5(string, result);
-      done5 = 1;
-    } else if((done6 == 0) && starts_with_six_zeroes(result)) {
-      printf("part 2: ");
-      print_md5(string, result);
-      done6 = 1;
+    zeroes = number_of_leading_zeroes(result);
+    if(zeroes > maxzeroes) {
+      print_md5(clock_stop(&start), string, result);
+      maxzeroes = zeroes;
     }
-  } while((done5 == 0) || (done6 == 0));
+  } while(maxzeroes < 10);
 
-  clock_gettime(CLOCK_MONOTONIC, &stop);
-
-  long seconds  = stop.tv_sec - start.tv_sec;
-  long millisec = (stop.tv_nsec- start.tv_nsec)/1000000;
-  if(millisec < 0) {
-    millisec += 1000;
-    seconds -= 1;
-  }
-
-  
-  printf("time used: %ld seconds, %ld milliseconds\n", seconds, millisec);
   return 0;
 }
