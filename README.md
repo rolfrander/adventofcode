@@ -8,3 +8,4 @@ day. The goal is to find an elegant and idiomatic solution in each language.
 * Day 2: [Erlang](https://github.com/rolfrander/adventofcode/blob/master/day02.erl)
 * Day 3: [Haskell](https://github.com/rolfrander/adventofcode/blob/master/day03.hs)
 * Day 4: [C](https://github.com/rolfrander/adventofcode/blob/master/day04.c)
+* Day 5: [Perl6](https://github.com/rolfrander/adventofcode/blob/master/day05.pl)
