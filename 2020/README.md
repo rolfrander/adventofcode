@@ -1,4 +1,4 @@
-# day02
+# advent2020
 
 FIXME: description
 
@@ -10,7 +10,7 @@ Download from http://example.com/FIXME.
 
 FIXME: explanation
 
-    $ java -jar day02-0.1.0-standalone.jar [args]
+    $ java -jar advent2020-0.1.0-standalone.jar [args]
 
 ## Options
 

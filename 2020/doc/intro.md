@@ -1,3 +1,3 @@
-# Introduction to day02
+# Introduction to advent2020
 
 TODO: write [great documentation](http://jacobian.org/writing/what-to-write/)
