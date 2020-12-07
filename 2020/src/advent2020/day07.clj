@@ -72,6 +72,14 @@ dark violet bags contain no other bags.")
                               childlist))]
     (dec (collect (get data parent)))))
 
+; alternativ versjon, vet ikke om den egentlig er enklere å lese
+(defn count-children [data parent]
+  (letfn [(collect [childlist]
+                   (->> childlist
+                        (map (fn [[bag count]] (* count (collect (get data bag)))))
+                        (reduce + 1)))]
+    (dec (collect (get data parent)))))
+
 (defn parse-and-count-parents [data child]
   (let [tree (build-structure data)
         reverse-tree (make-parent-structure tree)]
