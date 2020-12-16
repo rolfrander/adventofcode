@@ -136,7 +136,6 @@ nearby tickets:
         r (find-applicable-rules rules my nearby)
         rules-per-col (map #(into #{} (map first %)) r)]
 
-    ; flatten, we just want rule names
     (->> (solve rules-per-col)
          (map-indexed
           (fn [idx name]
@@ -144,7 +143,6 @@ nearby tickets:
          (filter #(str/starts-with? (first %) "departure"))
          (map second)
          (apply *))
-    ;(first (drop-while not-solved? (iterate reduce-rules r)))
     ))
 
 (task-2 (slurp "day16.txt"))
