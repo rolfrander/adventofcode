@@ -67,6 +67,7 @@
 (defn find-next-password [base26]
   (->> base26
        base26-to-int
+       inc
        (iterate inc)
        (map int-to-base26)
        (filter valid-password)
@@ -79,11 +80,14 @@
        base26-to-letters
        ))
 
-(valid-password (letters-to-base26 "abcdeggg"))
+;(valid-password (letters-to-base26 "abcdeggg"))
 
-(time (task-1 "ghijklmn"))
+;(time (task-1 "ghijklmn"))
 
-(time (task-1 "hxbxwxba"))
+(time (task-1 (task-1 "hxbxwxba")))
+;; => "hxcaabcc"
+
+
 ;; => "hxbxxyzz"
 
 
