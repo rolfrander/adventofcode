@@ -1,36 +1,14 @@
-# advent2020
+# advent2021
 
-FIXME: description
-
-## Installation
-
-Download from http://example.com/FIXME.
+A Clojure library designed to ... well, that part is up to you.
 
 ## Usage
 
-FIXME: explanation
-
-    $ java -jar advent2020-0.1.0-standalone.jar [args]
-
-## Options
-
-FIXME: listing of options this app accepts.
-
-## Examples
-
-...
-
-### Bugs
-
-...
-
-### Any Other Sections
-### That You Think
-### Might be Useful
+FIXME
 
 ## License
 
-Copyright © 2020 FIXME
+Copyright © 2021 FIXME
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at
