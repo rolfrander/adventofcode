@@ -9,6 +9,10 @@ import (
 
 func formatNumber(n int, target []byte) int {
 	pos := len(target) - 1
+	if n == 0 {
+		target[pos] = '0'
+		return pos
+	}
 	for ; n > 0; pos-- {
 		digit := n % 10
 		n = n / 10
