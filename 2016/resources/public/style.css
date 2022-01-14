@@ -1,0 +1,61 @@
+.room:hover {
+    fill: #ec008c !important;
+    opacity: 1;
+}
+
+.plain {
+    fill: #ccc;
+}
+
+.goal {
+    fill: black;
+}
+
+.junction {
+    fill: #99c;
+}
+
+#app div.apiform {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 1.2em;
+    left: 0;
+    padding: 0.4em;
+    background-color: bisque;
+}
+
+.code {
+    font-family: 'Cascadia Code PL', monospace;
+    font-weight: bold;
+}
+
+pre {
+    font-family: 'Cascadia Code PL', monospace;
+    font-size: small;
+}
+
+#app {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+#app svg {
+    position: fixed;
+    width: 85%;
+    height: 100%;
+    top: 2em;
+    right: 14em;
+    bottom: 0;
+    left: 0;
+}
+
+#app div.info {
+    position: fixed;
+    top: 2em;
+    width: auto;
+    left: 85%;
+    bottom: 0;
+    right: 0;
+    border: 3px solid black;
+    overflow: auto;
+}
