@@ -13,9 +13,6 @@
     (when (pred x)
       x)))
 
-(defn char->digit [c]
-  (- (int c) (int \0)))
-
 (defn task-1 [input]
   (->> (concat (seq input) )
        (partition 2 1 [(first input)])
