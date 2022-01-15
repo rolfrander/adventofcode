@@ -43,16 +43,77 @@
        nil running-score
        \{ (let [[data subscore] (score (rest data) (inc depth))]
             (recur data (+ running-score subscore)))
-       
-       \} (debug [(rest data) (+ depth running-score)])
-       
+
+       \} [(rest data) (+ depth running-score)]
+
        \< (recur (ignore-garbage data) running-score)
 
-       (recur (rest data) running-score)
-       ))))
+       (recur (rest data) running-score)))))
+
+(defn score-2 [^String input]
+  (loop [i 0
+         score-cnt 0
+         garbage-cnt 0
+         depth 0
+         in-garbage false]
+    (if (>= i (.length input))
+      [score-cnt garbage-cnt]
+      (case (.charAt input i)
+        \{ (recur (inc i) score-cnt garbage-cnt (inc depth) in-garbage)
+        \} (if in-garbage
+             (recur (inc i) score-cnt (inc garbage-cnt) depth in-garbage)
+             (recur (inc i) (+ score-cnt depth) garbage-cnt (dec depth) in-garbage))
+        \! (recur (+ i 2) score-cnt garbage-cnt depth in-garbage)
+        \< (recur (inc i) score-cnt garbage-cnt depth true)
+        \> (recur (inc i) score-cnt garbage-cnt depth false)
+        (if in-garbage
+          (recur (inc i) score-cnt (inc garbage-cnt) depth in-garbage)
+          (recur (inc i) score-cnt garbage-cnt (dec depth) in-garbage))))))
+
+(def testvectors (partition 2 ["{}" 1
+                               "{{{}}}" 6
+                               "{{}{}}" 5
+                               "{{{},{},{{}}}}" 16
+                               "{<a>,<a>,<a>,<a>}" 1
+                               "{{<ab>},{<ab>},{<ab>},{<ab>}}" 9
+                               "{{<!!>},{<!!>},{<!!>},{<!!>}}" 9
+                               "{{<a!>},{<a!>},{<a!>},{<ab>}}" 3
+                               "{}{}" 2]))
+
+(def testvectors2 (partition 2 ["<>" 0
+                                "<random characters>" 17
+                                "<<<<>" 3
+                                "<{!>}>" 2
+                                "<!!>" 0
+                                "<!!!>>" 0
+                                "<{o\"i!a,<{i<a>" 10]))
+
+(defn count-garbage-b [line]
+  (->> (re-seq #"^<|>$|(?:!.|([^!>]))" line)
+       (map second)
+       (remove nil?)
+       count))
+
+(defn task-2-b [input]
+  (reduce (fn [ret element]
+            (case element
+              "{" (update ret :depth inc)
+              "}" (-> ret
+                      (update :groups (partial + (:depth ret)))
+                      (update :depth dec))
+              (update ret :garbage (partial + (count-garbage-b element)))))
+          {:groups 0 :garbage 0 :depth 0} (re-seq #"<(?:!.|[^!>])*>|(?:[{}])" input)))
+  
+(comment
+  (->> testvectors
+       (map first)
+       (map task-2-b)
+       (map vector testvectors))
+  )
+
 
 (deftest score-test
-  (are [input res] (= res (score (parse-line input)))
+  (are [input res] (= res (first (score-2 input)))
     "{}" 1
     "{{{}}}" 6
     "{{}{}}" 5
