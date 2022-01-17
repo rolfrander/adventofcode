@@ -60,14 +60,18 @@
         skip-list (reverse-and-accumulate data iv)]
     (apply * (get-values-at iv skip-list [0 1]))))
 
-(defn task-2 [input iv]
+(defn knot-hash [input]
   (let [data (doall (prepare-for-task-2 input))
-        skip-list (doall (reverse-and-accumulate data iv))]
-    (->> (get-values-at iv skip-list (range 256))
+        skip-list (doall (reverse-and-accumulate data 256))]
+    (->> (get-values-at 256 skip-list (range 256))
          (partition 16)
          (map (partial apply bit-xor))
-         (map (partial format "%02x"))
-         (apply str))))
+         )))
+
+(defn task-2 [input iv]
+  (->> (knot-hash input)
+       (map (partial format "%02x"))
+       (apply str)))
 
 ;(task-1 testdata 5)
 ;(task-1 (get-data 2017 10) 256)
