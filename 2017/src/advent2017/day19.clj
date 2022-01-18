@@ -93,5 +93,3 @@
 (task-2 testdata)
 (task-2 (get-data 2017 19))
 
-(map #(path-at testdata (add-pos [5 5] (first %)))
-     (other-directions testdata :up-down [5 5]))
