@@ -3,16 +3,20 @@
     opacity: 1;
 }
 
-.plain {
-    fill: #ccc;
+.pos {
+    fill: green !important;
 }
 
-.goal {
-    fill: black;
+.weakened {
+    fill: lightblue;
 }
 
-.junction {
-    fill: #99c;
+.infected {
+    fill: red;
+}
+
+.flagged {
+    fill: pink;
 }
 
 #app div.apiform {

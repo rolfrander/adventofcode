@@ -1,2 +1,2 @@
 ^{:css-dirs ["resources/public"]}
-{:main advent2017-viz.grid}
+{:main advent2017-viz.day22}

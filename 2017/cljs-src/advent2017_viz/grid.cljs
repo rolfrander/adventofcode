@@ -1,11 +1,12 @@
-(ns ^:figwheel-hooks advent2016-viz.day24
+(ns ^:figwheel-hooks advent2017-viz.grid
   (:require [cljsjs.d3]
-            [cljs.core.async :refer [<!]] 
+            [cljs.core.async :refer [<!]]
             [cljs-http.client :as http]
             [clojure.string :as str])
-    (:require-macros [cljs.core.async.macros :refer [go]]))
+  (:require-macros [cljs.core.async.macros :refer [go]]))
 
-(def app-state (atom {:info nil}))
+(def app-state (atom {:info nil
+                      :data nil}))
 
 (defn clear-debug []
   (let [info-panel (:info @app-state)]
@@ -24,7 +25,8 @@
     (-> info-panel
         (.append "pre")
         (.attr "id" "debug")
-        (.text predata))))
+        (.text predata)))
+  predata)
 
 (defn show-error [msg]
   (let [info-panel (:info @app-state)]
@@ -38,7 +40,7 @@
 
 (defn mouseover-handler [event]
   (let [info-panel (:info @app-state)
-        text (-> (.-target event) 
+        text (-> (.-target event)
                  (.getAttribute "info")
                  (str/split #" *, *"))]
     (-> info-panel
@@ -64,11 +66,11 @@
    where each element is:
    {:x :y :class (css-class-names as a string) :style (optional, additional css styling) :info (string to show user)}"
   [data]
-  
+
   (-> js/d3
       (.selectAll "#app svg *")
       (.remove))
-  
+
   (let [svg    (.select js/d3 "#app svg")
         width  (.-value (.-baseVal (.-width (.node svg))))
         height (.-value (.-baseVal (.-height (.node svg))))
@@ -78,31 +80,58 @@
                         (/ (float width)  (inc (float (- max-x min-x)))))]
     (debug (str "max-x: " max-x "\r\n"
                 "max-y: " max-y "\r\n"
-                "square-dim: " square-dim))
+                "square-dim: " square-dim "\r\n"
+                (:debug data)))
     (doseq [{:keys [x y class style info]} (:data data)]
       (cond-> svg
         true  (.append "rect")
         true  (.attr "x" (str (* (- x min-x) square-dim)))
         true  (.attr "y" (str (* (- y min-y) square-dim)))
-        true  (.attr "width" (str square-dim))
-        true  (.attr "height" (str square-dim))
+        true  (.attr "width" (str (* square-dim .7)))
+        true  (.attr "height" (str (* square-dim .7)))
         class (.attr "class" class)
         info  (.attr "info" info)
         style (.attr "style" style)
-        true  (.on "mouseover" #'mouseover-handler))))
-  )
+        true  (.on "mouseover" #'mouseover-handler)))))
+
+
+(defn set-simulate-fn [function]
+  (swap! app-state assoc :simulate function))
+
+(defn set-prepare-fn [function]
+  (swap! app-state assoc :prepare function))
+
+(defn set-data-fn [function]
+  (swap! app-state assoc :get-data function))
+
+(defn simulate-step [_event]
+  (let [f (:simulate @app-state)
+        state (swap! app-state update :data f)]
+    (grid (:data state))))
+
+(defn simulate-start [event]
+  (if (:run @app-state)
+    (do (js/clearInterval (:run @app-state))
+        (swap! app-state dissoc :run)
+        (.attr (:simulate-button @app-state) "value" "start simulering"))
+    (do (swap! app-state assoc :run (js/setInterval #(simulate-step nil) 250))
+        (.attr (:simulate-button @app-state) "value" "stopp simulering"))))
+
+(defn get-json [d]
+  (js->clj (.parse js/JSON (:body d)) :keywordize-keys true))
 
 (defn load-data [url]
-  (go (let [get-json #(js->clj (.parse js/JSON (:body %)) :keywordize-keys true)
-            data-ch (http/get url)]
-        (let [unparsed-data (<! data-ch)]
-          (if (not= 200 (:status unparsed-data))
-            (show-error (:error-text unparsed-data))
-            (grid (get-json unparsed-data)))))))
+  (go (let [data-ch (http/get url) 
+            unparsed-data (<! data-ch)]
+        (if (not= 200 (:status unparsed-data))
+          (show-error (:error-text unparsed-data))
+          (let [data ((:prepare (debug @app-state)) (get-json unparsed-data))]
+            (swap! app-state assoc :data data)
+            (grid data))))))
+
 
 (defn url-submit [_event]
-  (let [info (:info @app-state)
-        url-input (-> js/d3
+  (let [url-input (-> js/d3
                       (.select "#app input#url")
 
                       (.property "value"))
@@ -114,6 +143,7 @@
                         (str/join "\r\n")))
     (load-data url-input)))
 
+
 (defn remove-contents []
   (-> js/d3
       (.selectAll "#app *")
@@ -123,6 +153,12 @@
   (-> js/d3
       (.select "#app")
       (.append "svg")))
+
+(defn button [container label callback]
+  (-> (.append container "input")
+      (.attr "type" "submit")
+      (.attr "value" label)
+      (.on "click" callback)))
 
 (defn append-apiform []
   (let [form (-> js/d3
@@ -141,9 +177,11 @@
         (.attr "type" "text")
         (.attr "size" 40)
         (.attr "id" "url"))
-    (-> (.append form "input")
-        (.attr "type" "submit")
-        (.on "click" #'url-submit))))
+    (button form "hent data" #'url-submit)
+    (button form "simuleringssteg" #'simulate-step)
+    (swap! app-state 
+           assoc :simulate-button (button form "start simulering" #'simulate-start))))
+
 
 (defn append-div []
   (-> js/d3
@@ -156,12 +194,11 @@
   (let [api-url (append-apiform)
         svg (append-svg)
         info (append-div)]
-    (swap! app-state assoc :info info)
-    ))
-
+    (swap! app-state assoc :info info)))
 
 (defn ^:after-load setup []
   (println "js reload")
   (remove-contents)
   (main))
 
+(defonce start-up (setup))
