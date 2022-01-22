@@ -152,7 +152,8 @@
 (defn append-svg []
   (-> js/d3
       (.select "#app")
-      (.append "svg")))
+      (.append "svg")
+      (.attr "class" "viz")))
 
 (defn button [container label callback]
   (-> (.append container "input")

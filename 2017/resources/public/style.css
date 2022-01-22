@@ -19,6 +19,10 @@
     fill: pink;
 }
 
+h1 {
+    font-size: medium;
+}
+
 #app div.apiform {
     position: fixed;
     top: 0;
@@ -27,6 +31,10 @@
     left: 0;
     padding: 0.4em;
     background-color: bisque;
+}
+
+.ignoremouse {
+    pointer-events: none;
 }
 
 .code {
@@ -43,23 +51,70 @@ pre {
     font-family: Arial, Helvetica, sans-serif;
 }
 
-#app svg {
+#app .viz {
     position: fixed;
-    width: 85%;
-    height: 100%;
+    /*width: 84%;*/
+    height: auto;
     top: 2em;
     right: 14em;
     bottom: 0;
     left: 0;
+    overflow: auto;
+}
+
+#app svg {
+    position: absolute;
+    border: 1px solid red;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    width: 100%;
 }
 
 #app div.info {
     position: fixed;
     top: 2em;
-    width: auto;
-    left: 85%;
-    bottom: 0;
+    width: 14em;
+    height: auto;
+    left: auto;
     right: 0;
-    border: 3px solid black;
+    bottom: 0;
     overflow: auto;
+}
+
+div.viz {
+    padding: 0.5em;
+    background-color: black;
+    color:greenyellow;
+}
+
+div.codelisting {
+    float: left;
+    width: 49%;
+    min-height: 20%;
+}
+
+div.codelisting > div.ip {
+    border: 1px solid greenyellow;
+}
+
+div.codelisting > div.breakpoint {
+    background-color: rgb(163, 236, 191);
+    color:rgb(20, 41, 20)
+}
+
+div.codelisting > div:hover {
+    background-color: rgb(110, 223, 110);
+    color:rgb(20, 41, 20)
+}
+
+code {
+    padding-left: 1em;
+}
+
+div.registers {
+    float: left;
+    width: 49%;
 }
