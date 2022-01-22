@@ -18,4 +18,4 @@
               {:jmp val-b}
               state))))
 
-(interpreter (get-data 2017 23) cpu start-state)
+; (interpreter (get-data 2017 23) cpu start-state)
