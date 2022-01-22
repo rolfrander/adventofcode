@@ -130,7 +130,7 @@
          first
          :infected)))
 
-(time (task-2 (get-data 2017 22) 10000000))
+;(time (task-2 (get-data 2017 22) 10000000))
 
 ;(time (task-1 (get-data 2017 22)))
 ;
