@@ -32,21 +32,22 @@ Monkey 3:
     If false: throw to monkey 1")
 
 (defn parse-monkey [[_total id items oper oper-param div true-throw false-throw]]
-  {:id (puzzle/str->long id)
-   :items (into clojure.lang.PersistentQueue/EMPTY
-                (map puzzle/str->long (str/split items #", ")))
-   :oper (if (= oper-param "old")
-           (case oper
-             "+" (fn [w] (+ w w))
-             "*" (fn [w] (* w w)))
-           (let [p (puzzle/str->long oper-param)]
+  (let [divisor (puzzle/str->long div)
+        p (puzzle/str->long oper-param)]
+    {:id (puzzle/str->long id)
+     :items (into clojure.lang.PersistentQueue/EMPTY
+                  (map puzzle/str->long (str/split items #", ")))
+     :oper (if (= oper-param "old")
+             (case oper
+               "+" (fn [w] (+ w w))
+               "*" (fn [w] (* w w)))
              (case oper
                "+" (fn [w] (+ w p))
-               "*" (fn [w] (* w p)))))
-   :div (puzzle/str->long div)
-   :true (puzzle/str->long true-throw)
-   :false (puzzle/str->long false-throw)
-   :counter 0})
+               "*" (fn [w] (* w p))))
+     :div divisor
+     :true (puzzle/str->long true-throw)
+     :false (puzzle/str->long false-throw)
+     :counter 0}))
 
 (defn parse [input]
   (->> input
@@ -65,9 +66,9 @@ Monkey 3:
 
 (def ^:dynamic *worry-reduction* 3)
 
-(defn eval-monkey [monkey]
+(defn eval-monkey [monkey gcd]
   (let [item (first (:items monkey))
-        worry (quot ((:oper monkey) item) *worry-reduction*)]
+        worry (quot (mod ((:oper monkey) item) gcd) *worry-reduction*)]
     [(-> monkey
          (update :items pop)
          (update :counter inc))
@@ -77,19 +78,20 @@ Monkey 3:
        (:false monkey))]))
 
 (defn round [monkeys]
-  (loop [monkeys monkeys
-         i 0]
-    (if (> i (count monkeys))
-      monkeys
-      (recur (loop [monkeys monkeys]
-               (let [monkey (get monkeys i)]
-                 (if (empty? (:items monkey))
-                   monkeys
-                   (let [[monkey item to] (eval-monkey monkey)]
-                     (recur (-> monkeys
-                                (assoc i monkey)
-                                (update-in [to :items] conj item)))))))
-             (inc i)))))
+  (let [gcd (reduce * (map :div monkeys))]
+    (loop [monkeys monkeys
+           i 0]
+      (if (> i (count monkeys))
+        monkeys
+        (recur (loop [monkeys monkeys]
+                 (let [monkey (get monkeys i)]
+                   (if (empty? (:items monkey))
+                     monkeys
+                     (let [[monkey item to] (eval-monkey monkey gcd)]
+                       (recur (-> monkeys
+                                  (assoc i monkey)
+                                  (update-in [to :items] conj item)))))))
+               (inc i))))))
 
 (defn eval-rounds [rounds data]
   (nth (iterate round data)
@@ -106,11 +108,20 @@ Monkey 3:
        (eval-rounds 20)
        (calc-monkey-business)))
 
+(defn task-2 [input]
+  (binding [*worry-reduction* 1]
+    (->> (parse input)
+         (eval-rounds 10000)
+         (calc-monkey-business))))
+
 ;(eval-monkey (first (vals (parse testdata))))
 (task-1 testdata)
 (task-1 (puzzle/get-data 2022 11))
 
+(task-2 testdata)
+(task-2 (puzzle/get-data 2022 11))
+
 (binding [*worry-reduction* 1]
   (->> (parse testdata)
-       (eval-rounds 20)
+       (eval-rounds 10000)
        (map :counter)))
