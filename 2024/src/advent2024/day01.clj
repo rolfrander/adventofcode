@@ -1,8 +1,5 @@
 (ns advent2024.day01
-  (:require [clojure.string :as string]
-            [rolfrander.puzzle-lib :as puzzle-lib]
-            [rolfrander.puzzle-lib :as puzzle]))
-
+  (:require [rolfrander.puzzle-lib :as puzzle]))
 
 (def data (puzzle/get-data 2024 01))
 
