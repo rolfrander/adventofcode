@@ -100,3 +100,6 @@
 (solve-2 data)
 ;;=> 218811774248729
 
+(count (stones-2 (parse data) 75))
+
+(take 10 (sort-by second > (stones-2 (parse data) 75)))
