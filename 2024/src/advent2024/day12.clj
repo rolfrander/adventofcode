@@ -69,9 +69,10 @@ EEEC")
   (let [m (puzzle/parse-map in)
         w (:width m)
         h (:height m)
-        corner-matrix (for [x (range -1 (inc w))
-                            y (range -1 (inc h))]
-                        #{[x y] [x (inc y)] [(inc x) y] [(inc x) (inc y)]})
+        corner-matrix (fn [x1 y1 x2 y2]
+                        (for [x (range (dec x1) (inc x2))
+                              y (range (dec y1) (inc y2))]
+                          #{[x y] [x (inc y)] [(inc x) y] [(inc x) (inc y)]}))
         count-corners (fn [c] (case (count c)
                                 0 0
                                 1 1
@@ -79,17 +80,21 @@ EEEC")
                                 3 1
                                 4 0
                                 0))
-        count-all-corners (fn [x] (->> (map #(filter % x) corner-matrix)
-                                       (remove empty?)
-                                       (map count-corners)
-                                       (reduce +)))
+        ;; this is not an effective datastructure for extracting 2x2 subsets...
+        
+        count-all-corners (fn [area] (let [minx (apply min (map first area))
+                                           maxx (apply max (map first area))
+                                           miny (apply min (map second area))
+                                           maxy (apply max (map second area))]
+                                    (->> (map #(filter % area) (corner-matrix minx miny maxx maxy))
+                                         (remove empty?)
+                                         (map count-corners)
+                                         (reduce +))))
         area (fn [l] (count l))
         price (fn [l] (* (area l) (count-all-corners l)))]
     (->> (mapcat partition-area (vals (m :markings)))
          (map price)
          (reduce +))))
-
-
 
 ; probably not helpful...
 (defn count-corners [in]
@@ -124,6 +129,6 @@ EEEC")
 (solve-1 (puzzle/get-data 2024 12))
 ;;=> 1450422
 
-(solve-2 testdata)
-(solve-2 (puzzle/get-data 2024 12))
+(time (solve-2 (puzzle/get-data 2024 12)))
+
 ;;=> 906606
