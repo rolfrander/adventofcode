@@ -56,13 +56,15 @@ p=9,5 v=-3,-3")
          (reduce *)
          )))
 
-(defn solve-1 [in w h iter]
-  (let [robots (parse in)
-        move-single (fn [robot] (-> robot
+(defn move [state w h]
+  (let [move-single (fn [robot] (-> robot
                                     (assoc :px (mod (+ (:px robot) (:vx robot)) w))
-                                    (assoc :py (mod (+ (:py robot) (:vy robot)) h))))
-        move (fn [state] (map move-single state))]
-    (-> (iterate move robots)
+                                    (assoc :py (mod (+ (:py robot) (:vy robot)) h))))]
+    (map move-single state)))
+
+(defn solve-1 [in w h iter]
+  (let [robots (parse in)]
+    (-> (iterate #(move % w h) robots)
         (nth iter)
         (safety-factor w h))))
 
@@ -73,17 +75,13 @@ p=9,5 v=-3,-3")
         w-high (- w corner-size)
         h-low corner-size
         h-high (- h corner-size)
-        move-single (fn [robot] (-> robot
-                                    (assoc :px (mod (+ (:px robot) (:vx robot)) w))
-                                    (assoc :py (mod (+ (:py robot) (:vy robot)) h))))
-        move (fn [state] (map move-single state))
         blank-corners (fn [r] (< (count (filter #(or (and (< (:px %) w-low) (< (:py %) h-low))
                                                      (and (< (:px %) w-low) (> (:py %) h-high))
                                                      (and (> (:px %) w-high) (< (:py %) h-low))
                                                      (and (> (:px %) w-high) (> (:py %) h-high)))
                                                 r))
                                   10))]
-    (loop [configs (iterate move robots)
+    (loop [configs (iterate #(move % w h) robots)
            i 0]
       (if (> i iter)
         nil
@@ -91,6 +89,26 @@ p=9,5 v=-3,-3")
               (puzzle/print-png (map #(vector (:px %) (:py %)) (first configs)) w h (format "robots-%04d" i)))
             (recur (rest configs) (inc i)))))))
 
+(defn varians [x]
+  (let [sq (fn [a] (* a a))
+        mean (/ (reduce + x)
+                (count x))
+        var (->> (map #(sq (- % mean)) x)
+                 (reduce +))]
+    (float var)))
+
+(varians (map :px (parse data)))
+
+(let [robots (parse data)
+      w 101
+      h 103]
+  (->> (iterate #(move % w h) robots)
+       (map #(map :py %))
+       (map varians)
+       (take 200)
+       (map-indexed #(if (< %2 300000) [%1 %2] nil))
+       (remove nil?)
+       ))
 
 (solve-1 testdata 11 7 100)
 (solve-1 data 101 103 100)
