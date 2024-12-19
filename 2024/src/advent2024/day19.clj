@@ -92,14 +92,42 @@ bbrgwb")
     (->> (map (partial match-towels tree tree) (:patterns data))
          (apply +))))
 
-(strings-to-tree (:patterns (parse testdata)))
+(def towel-data (parse testdata))
+
+(defn solve-2b [in]
+  (let [towel-data (parse in)
+        towel-by-length (group-by count (:towels towel-data))
+        patterns (vec (:patterns towel-data))
+        match-patterns (fn [pattern towels offset len]
+                         (let [substring (.subSequence pattern offset (+ offset len))]
+                           (count (filter #(.equals substring %) towels))))
+        acc-all-matches-starting-at
+        (fn [matches-by-length pattern offset]
+          (reduce-kv (fn [res length towels]
+                       (if (> (+ offset length) (count pattern))
+                         res
+                         (update res (+ length offset)
+                                 + (* (match-patterns pattern towels offset length)
+                                      (matches-by-length offset)))))
+                     matches-by-length towel-by-length))
+
+        find-matches-for-pattern
+        (fn [pattern]
+          (let [matches-by-length (assoc (vec (repeat (inc (count pattern)) 0)) 0 1)]
+            (->> (reduce #(acc-all-matches-starting-at %1 pattern %2)
+                         matches-by-length (range (count pattern)))
+                 peek)))]
+    
+    (apply + (map find-matches-for-pattern patterns))))
+
 
 (solve-1 testdata)
 ;;=> 6
 (solve-1 data)
 ;;=> 308
 
-(solve-2 testdata)
+(solve-2b testdata)
 ;;=> 16
-(solve-2 data)
+(solve-2b data)
+;;=> 662726441391898
 ;;=> 
