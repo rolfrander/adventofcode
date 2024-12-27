@@ -1,10 +1,7 @@
-.nrepl-port
-.clj-kondo/
-.lsp/
 .calva/
-target/
+.clj-kondo/
+.cpcache/
+.lsp/
 .nrepl-port
 config
-.cpcache
-2016/go/advent2016/advent2016
-2022/resources/advent2022/
+resources
