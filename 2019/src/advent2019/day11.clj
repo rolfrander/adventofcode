@@ -4,8 +4,6 @@
    [rolfrander.puzzle-lib :as puzzle]
    [clojure.core.async :refer [>!! <!! chan thread pipe close!]]))
 
-(def testchannel (chan 2))
-
 (defn robot-controller [start-color input output]
   (let [move (puzzle/move-fn :sq-4 :infinite)
         ;; inverted directions, "up" is south

@@ -124,6 +124,34 @@
                              (conj state x))))
       ((juxt :mem :output-state))))
 
+(defn disassemble [mem]
+  (loop [i 0
+         asm []]
+    (if (>= i (count mem))
+      asm
+      (let [opcode-number (mem i)
+            opcode (if (= opcode-number 99)
+                     {:operation :stop :params 0}
+                     (get opcodes (mod opcode-number 100) {:operation :data :params 0}))
+            param (if (= :data (:operation opcode))
+                    [opcode-number]
+                    (->> (paramtype (quot opcode-number 100) (:params opcode))
+                         (map-indexed #(let [param-val (+ i %1 1)]
+                                         (case %2
+                                           0 [:mem (mem param-val)]
+                                           1 param-val ; immediate mode?
+                                           2 [:rel (mem param-val)])))
+                         vec))]
+        (recur (+ i (:params opcode) 1)
+               (cond (= :nop (:operation opcode)) asm
+                     
+                     (and (= :data (:operation opcode))
+                          (= :data (second (peek asm)))
+                          (< (count (peek asm)) 18))
+                     (update asm (dec (count asm)) into param)
+
+                     :else
+                     (conj asm (into [i (:operation opcode)] param))))))))
 
 (defn robot 
   "starts the program in a thread. Returns a map with tree values:
@@ -138,7 +166,7 @@
                                           :output-fn (fn [state x] (>!! out x) state))]
                        (when *debug* (println "robot done"))
                        ;(close! in)
-                       ;(close! out)
+                       (close! out)
                        ret))]
     {:input in
      :output out
