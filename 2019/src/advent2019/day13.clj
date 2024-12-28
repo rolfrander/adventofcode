@@ -5,9 +5,8 @@
    [clojure.core.async :refer [>!! <!! chan thread pipe close!]]))
 
 
-
 (def tile-type [:empty :wall :block :horizontal-paddle :ball])
-(def tile [\. \# \B \- \o])
+(def tile [\space \# \B \- \o])
 (def tile-num (zipmap tile-type (range)))
 (def tile-sym (reduce-kv #(assoc %1 %2 (tile %3)) {} tile-num))
 (def ^:dynamic *terminal-output* false)
@@ -18,33 +17,43 @@
               (fn [_s] nil))
         block (fn [x y ch] (esc (format "%d;%dH%c" (+ 3 y) (inc x) ch)))
         score (fn [score] (esc (format "1;1HScore: %d" score)))
+        show-removed (fn [blocks] (esc (format "2;1HBlocks removed: %d" blocks)))
         ]
+    (esc "?25l")
     (esc "2J")
     (loop [x (<!! input)
            y (<!! input)
            tile-id (<!! input)
-           paint {}]
+           paint {}
+           remove-cnt 0]
       (cond (nil? x)
-            paint
+            (do (esc "?25h")
+                paint)
 
             (and (= x -1) (= y 0))
             (do (>!! output [:score tile-id 0])
                 (score tile-id)
                 (recur (<!! input) (<!! input) (<!! input)
-                       paint))
+                       paint
+                       remove-cnt))
 
             :else
             (let [cur-tile (paint [x y])]
               (block x y (tile tile-id))
               (case (tile-type tile-id)
                 :empty (when (= cur-tile :block)
+                         (show-removed (inc remove-cnt))
                          (>!! output [:remove-block x y]))
-                :ball (do ;(Thread/sleep 500)
+                :ball (do (when *terminal-output* (Thread/sleep 20))
                           (>!! output [:ball x y]))
                 :horizontal-paddle (>!! output [:horizontal-paddle x y])
                 nil)
               (recur (<!! input) (<!! input) (<!! input)
-                     (assoc paint [x y] (tile-type tile-id))))))))
+                     (assoc paint [x y] (tile-type tile-id))
+                     (if (and (= (tile-type tile-id) :empty)
+                              (= cur-tile :block))
+                       (inc remove-cnt)
+                       remove-cnt)))))))
 
 (defn print-screen [paint]
   (let [[max-x max-y min-x min-y] (for [k [max-key min-key]
@@ -184,29 +193,8 @@
 
 (def data (puzzle/get-data 2019 13))
 
-(draw-last-state (list 
-                  [:score 0 0]
-                  [:ball 19 22]
-                  [:horizontal-paddle 22 21]
-                  [:read-joystick -1 0]
-                  [:ball 20 21]
-                  [:horizontal-paddle 23 21]
-                  [:read-joystick -1 0]
-                  [:ball 21 20]
-                  [:horizontal-paddle 24 21]
-                  [:read-joystick -1 0]
-                  [:ball 22 19]
-                  [:horizontal-paddle 25 21]
-                  [:ball 23 18]
-                  [:read-joystick 1 0]
-                  [:score 1228 0]
-                  [:remove-block 25 16]
-                  [:horizontal-paddle 24 21]
-                  [:read-joystick 1 0]
-                  [:ball 24 17]))
-
 ;(solve-1 (puzzle/get-data 2019 13))
 ;;=> 363
 
-(solve-2 data) 
+;(solve-2 data) 
 
