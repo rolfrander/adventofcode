@@ -189,17 +189,13 @@ RE....#.#                           #......RF
                      (puzzle/dijkstra path start n
                                       :result-type :dist)))
         single-level-dist
-        (->> (mapcat (fn [a] (let [all-dist (filter (fn [[_ dist]] (< dist 10000)) (distance m a))]
-                               (map (fn [[b dist]]
-                                      [a b dist])
-                                    all-dist)))
+        (->> (mapcat (fn [a] (->> (filter (fn [[_ dist]] (< dist 10000)) (distance m a))
+                                  (map (fn [[b dist]] [a b dist]))))
                      (conj (keys portals) startpos endpos))
              (reduce (fn [res [a b dist]]
-                       (if (> dist 1000)
-                         res
-                         (cond-> res
-                           (not (or (= a endpos) (= b startpos))) (assoc-in [a b] dist)
-                           (not (or (= a startpos) (= b endpos))) (assoc-in [b a] dist))))
+                       (cond-> res
+                         (not (or (= a endpos) (= b startpos))) (assoc-in [a b] dist)
+                         (not (or (= a startpos) (= b endpos))) (assoc-in [b a] dist)))
                      {}))
 
         neighbours (fn [{:keys [pos level]}]
@@ -235,20 +231,3 @@ RE....#.#                           #......RF
 ;; 396
 (solve-2 data)
 ;;=> 7366
-
-(let [m (convert-for-part-2 (parse data))
-      {:keys [startpos endpos portals]} m
-      distance (fn [m start]
-                 (let [{:keys [path]} m
-                       close-n (puzzle/neighbours-fn :sq-4 :infinite)
-                       n (fn [pos]
-                           (filter path (close-n pos)))]
-                   (puzzle/dijkstra path start n
-                                    :result-type :dist)))]
-  (mapcat (fn [a] (let [all-dist (filter (fn [[_ dist]] (< dist 10000)) (distance m a))]
-                   (map (fn [[b dist]]
-                          [a b dist])
-                        all-dist)))
-          (conj (keys portals) startpos endpos))
-
-  )
