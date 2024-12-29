@@ -122,7 +122,7 @@
                            (let [state (if (nil? state) [] state)]
                              (when *debug* (println "output" x))
                              (conj state x))))
-      ((juxt :mem :output-state))))
+      :output-state))
 
 (defn disassemble [mem]
   (loop [i 0
