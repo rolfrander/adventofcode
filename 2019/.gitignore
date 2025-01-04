@@ -5,3 +5,4 @@
 .nrepl-port
 config
 resources
+debug.log
