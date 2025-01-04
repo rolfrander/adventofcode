@@ -47,7 +47,7 @@
                 :rel-base 0
                 :input-state {}
                 :output-state nil}]
-    (when *debug* (println state))
+    ;(when *debug* (println state))
     
     (let [mem (fn [offset] (if (>= offset (count (state :mem)))
                              0
@@ -159,8 +159,8 @@
    :output channel for writing output data
    :done channel for writing internal state after the robot shuts down"
   [program]
-  (let [in (chan 3)
-        out (chan 3)
+  (let [in (chan)
+        out (chan)
         done (thread (let [ret (interpret program
                                           :input-fn (fn [state] (assoc state :value (<!! in)))
                                           :output-fn (fn [state x] (>!! out x) state))]
