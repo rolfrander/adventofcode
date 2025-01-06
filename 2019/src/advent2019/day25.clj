@@ -4,10 +4,10 @@
    [clojure.core.async :refer [<!! >!! thread chan close!]]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
-   [rolfrander.puzzle-lib :refer [get-data]]
+   [rolfrander.puzzle-lib :refer [get-data digits]]
    [flatland.useful.map :refer [into-map map-vals]]))
 
-(def example-data "== Engineering ==
+(comment def example-data "== Engineering ==
 You see a whiteboard with plans for Springdroid v2.
 
 Doors here lead:
@@ -42,7 +42,8 @@ Command?")
   (let [output-ch (chan)]
     (thread (loop []
               (when-let [[command-kw parameter] (<!! input-ch)]
-                (when-not (= command-kw :quit)
+                (when-not (or (nil? command-kw)
+                              (= command-kw :quit))
                   (log/debugf "command %s %s" command-kw parameter)
                   (if-let [{:keys [cmd params]} (commands command-kw)]
                     (let [cmdline (if (> params 0)
@@ -91,10 +92,11 @@ Command?")
                   (>!! output-ch ret)
 
                   (let [[token value] (get-token l)]
-                    (log/debugf "parsed '%s': %s" token value)
+                    ;(log/debugf "parsed '%s': %s" token value)
                     (case token
                       :cmd
-                      (do (>!! output-ch ret)
+                      (do (>!! output-ch (assoc ret 
+                                                :expect-cmd true))
                           (recur :top {}))
 
                       :doors
@@ -136,11 +138,11 @@ Command?")
                         (recur :top ret)
                         (recur state ret))
 
-                      :too-heavy
-                      (recur state (assoc ret :weight token))
-
-                      :too-light
-                      (recur state (assoc ret :weight token))
+                      (:too-heavy,:too-light)
+                      (do (>!! output-ch (assoc ret
+                                                :expect-cmd false
+                                                :weight token))
+                          (recur :top {}))
 
                       :text
                       (recur state (update ret :desc conj l))
@@ -278,23 +280,48 @@ Command?")
                                  ffirst)]
       (print-rooms-by-pos rooms rooms-by-pos pos))))
 
-(print-map {"Storage" {:south "Hot Chocolate Fountain"},
-            "Security Checkpoint" {:south "Holodeck", :east nil, :west nil},
-            "Engineering" {:south nil, :east "Science Lab", :north "Kitchen"},
-            "Hull Breach" {:west "Gift Wrapping Center", :south "Hallway", :east "Passages"},
-            "Gift Wrapping Center" {:west nil, :east "Hull Breach", :north nil},
-            "Arcade" {:south "Corridor"},
-            "Holodeck" {:west "Kitchen", :north "Security Checkpoint"},
-            "Hallway" {:south "Stables", :east "Hot Chocolate Fountain", :north "Hull Breach"},
-            "Stables" {:north "Hallway"},
-            "Hot Chocolate Fountain" {:west "Hallway", :north "Storage"},
-            "Passages" {:west "Hull Breach", :south "Science Lab", :north "Corridor"},
-            "Corridor" {:south "Passages", :east nil, :north "Arcade"},
-            "Kitchen" {:south "Engineering", :east "Holodeck"},
-            "Sick Bay" {:west "Science Lab"},
-            "Science Lab" {:west "Engineering", :east "Sick Bay", :north "Passages"}}
+(defn find-path [rooms current target]
+  (let [node-list (loop [q (conj clojure.lang.PersistentQueue/EMPTY {:node current :parent nil :path nil})
+                    visited #{current}]
+               (if (empty? q)
+                 nil
+                 (if (= (:node (peek q)) target)
+                   (peek q)
+                   (let [v (peek q)
+                         q (pop q)
+                         [q visited] (reduce (fn [[q visited] [edge w]]
+                                               (if (visited w)
+                                                 [q visited]
+                                                 [(conj q {:node w :parent v :path edge})
+                                                  (conj visited w)]))
+                                             [q visited] (rooms (:node v)))]
+                     (recur q visited)))))]
+    (loop [n node-list
+           p '()]
+      (if (nil? (:parent n))
+        p
+        (recur (:parent n)
+               (conj p (:path n)))))))
 
-           "Sick Bay")
+(comment let [rooms {"Storage" {:south "Hot Chocolate Fountain"},
+             "Security Checkpoint" {:south "Holodeck", :east nil, :west nil},
+             "Engineering" {:south nil, :east "Science Lab", :north "Kitchen"},
+             "Hull Breach" {:west "Gift Wrapping Center", :south "Hallway", :east "Passages"},
+             "Gift Wrapping Center" {:west nil, :east "Hull Breach", :north nil},
+             "Arcade" {:south "Corridor"},
+             "Holodeck" {:west "Kitchen", :north "Security Checkpoint"},
+             "Hallway" {:south "Stables", :east "Hot Chocolate Fountain", :north "Hull Breach"},
+             "Stables" {:north "Hallway"},
+             "Hot Chocolate Fountain" {:west "Hallway", :north "Storage"},
+             "Passages" {:west "Hull Breach", :south "Science Lab", :north "Corridor"},
+             "Corridor" {:south "Passages", :east nil, :north "Arcade"},
+             "Kitchen" {:south "Engineering", :east "Holodeck"},
+             "Sick Bay" {:west "Science Lab"},
+             "Science Lab" {:west "Engineering", :east "Sick Bay", :north "Passages"}}]
+
+  ;((comp keys rooms) "Passages")
+  (find-path rooms "Sick Bay" "Storage")
+  )
 
 (defn robot
   "starts the program in a thread. Returns channel for writing output data"
@@ -319,7 +346,7 @@ Command?")
 (def dangerous-items #{"infinite loop"
                        "photons"
                        "escape pod"
-                       "giant electromagned"
+                       "giant electromagnet"
                        "molten lava"})
 
 (defn pos [game-state] (peek (:pos game-state)))
@@ -357,8 +384,6 @@ Command?")
         after-move (and (game-output :room)
                         (not= (game-output :room)
                               (pos game-state)))]
-    (log/debug "last move: " (game-state :last-move))
-    (log/debug "pos-stack: " (pr-str (game-state :pos)))
     (cond-> game-state
       true                     (assoc :after-move after-move)
       after-move               (update :pos conj (game-output :room))
@@ -412,12 +437,73 @@ Command?")
         (println "warning: don't take the" i)))))
 
 (defn adjust-cmd [state cmd param]
-  (if (= cmd :take)
-    (let [items (get-in state [:item-map (pos state)])
-          item-to-take (or (first (filter #(str/starts-with? % param) items))
-                           param)]
-      [cmd item-to-take])
-    [cmd param]))
+  (cond (= cmd :take)
+        (let [items (get-in state [:item-map (pos state)])
+              item-to-take (or (first (filter #(str/starts-with? % param) items))
+                               param)]
+          [cmd item-to-take])
+
+        (= cmd :goto)
+        (let [rooms (keys (:rooms state))
+              room (or (first (filter #(str/starts-with? % param) rooms))
+                               param)]
+          [cmd room])
+
+        :else
+        [cmd param]))
+
+(defn- toggle-flag [state param]
+  (let [state (cond-> state
+                ((:flags state) param)       (update :flags disj param)
+                (not ((:flags state) param)) (update :flags conj param)
+                true                         (assoc :waiting-for-user true))]
+    (println "current flags:" (:flags state))
+    state))
+
+(defn- print-game [input-message state]
+  (try
+    (print-game-output input-message)
+    (print-available-options state)
+    (when (state :after-move)
+      (print-map (state :rooms) (pos state)))
+    (catch Exception e (log/error e "error printing"))
+    (finally (flush))))
+
+(defn- goto [state target command-in-ch]
+  (let [path (find-path (state :rooms) (pos state) target)]
+    (log/debug "goto-path: " path)
+    (>!! command-in-ch {:cmd :toggle :params [:noprint]})
+    (doseq [p path]
+      (>!! command-in-ch {:cmd p}))
+    (>!! command-in-ch {:cmd :toggle :params [:noprint]}))
+  state)
+
+(defn construct-weight-plan [items]
+  (let [items (vec items)
+        gray-code (fn [i] (bit-xor i (bit-shift-right i 1)))]
+    (->> (for [i (range (bit-shift-left 1 (count items)))] (gray-code i))
+         next
+         (reduce (fn [[r prev] cur]
+                   (let [n (loop [d (bit-xor prev cur) i 0]
+                             (if (<= d 1) i (recur (bit-shift-right d 1) (inc i))))]
+                     [(conj r [(if (> prev cur) :take :drop) (get items n)]) cur]))
+                 [[] 0])
+         first)))
+
+(defn- handle-weight-plan [state input-message command-in-ch]
+  (if (or (empty? (:weight-plan state))
+          (= (:room input-message) "Pressure-Sensitive Floor"))
+    (-> state
+        (dissoc :weight-plan)
+        (assoc :waiting-for-user (:expect-cmd input-message)
+               :last-move nil))
+    (do (>!! command-in-ch (first (:weight-plan state)))
+        (-> state
+            (update :weight-plan next)
+            (assoc :waiting-for-user false
+                   :last-move nil)))))
+
+
 
 ; representation of rooms:
 ; rooms -> map from name to map of directions to adjoining room
@@ -455,103 +541,159 @@ Command?")
 
 (defn game-controller [program user-in-ch]
   (log/info "starting game")
-  (let [get-command (fn [] (let [c (<!! user-in-ch)]
-                             (cond (string? c) [(keyword c)]
-                                   (nil? c) nil
-                                   (and (seqable? c)
-                                        (>= (count c) 1)) c
-                                   :else nil)))
+  (let [annotate-message (fn [m from] (if (nil? m)
+                                        nil
+                                        (assoc m :from from)))
 
-        command-in-ch (chan)
+        command-in-ch (chan 30)
         state-ch (->> (command-loop command-in-ch)
                       (robot program)
                       (read-loop)
                       (parse-loop))]
+    ;(pipe state-ch user-in-ch)
+    (try
+      (loop [state {:rooms {}
+                    :item-map {}
+                    :pos (list)
+                    :last-move nil
+                    :inventory #{}
+                    :flags #{}
+                    :waiting-for-user false}]
+        (log/info "waiting for input from game or user")
+        (when-let [input-message (if (:waiting-for-user state)
+                                   (annotate-message (<!! user-in-ch) :user)
+                                   (annotate-message (<!! state-ch)   :game))]
+          (log/debug "input-message: " (pr-str input-message))
+          (if (nil? input-message)
 
-    (loop [state {:rooms {}
-                  :item-map {}
-                  :pos (list)
-                  :last-move nil
-                  :inventory #{}
-                  :flats #{}}]
-      (log/info "waiting for game output")
-      (when-let [game-output (<!! state-ch)]
-        (let [{:keys [chart] :as state} (update-game-state state game-output)]
-          (log/debug "state:" game-output)
-          (try
-            (print-game-output game-output)
-            (print-available-options state)
-            (when (:after-move state)
-              (print-map (:rooms state) (pos state)))
-            (catch Exception e (log/error e "error printing"))
-            (finally (flush)))
+            nil ; game over
 
-          (let [safe-item (first (remove dangerous-items (:items game-output)))]
-            (if (not (nil? safe-item))
-              ; auto-take
-              (do (>!! command-in-ch [:take safe-item])
-                  (recur (assoc state :last-move nil)))
-              ; wait for command
-              (when-let [[cmd param] (get-command)]
-                (let [[cmd param] (adjust-cmd state cmd param)]
-                  (log/debug "send" [cmd param])
-                  (>!! command-in-ch [cmd param])
-                  (if (is-move? cmd)
-                    (recur (assoc state :last-move cmd))
-                    (recur (assoc state :last-move nil))))))))))
+            (case (input-message :from)
+              :user
+              (let [{:keys [cmd params]} input-message
+                    param (first params) ; assume only one for now...
+                    [cmd param] (adjust-cmd state cmd param)]
+                (case cmd
+                  :toggle
+                  (recur (toggle-flag state param))
+
+                  :rooms
+                  (do (doseq [r (keys (:rooms state))]
+                        (println r))
+                      (recur state))
+
+                  :goto
+                  (-> (goto state param user-in-ch)
+                      (assoc :waiting-for-user true)
+                      (recur))
+
+                  :find-weight
+                  (do (>!! command-in-ch [:inv nil])
+                      (recur (assoc state
+                                    :waiting-for-user false
+                                    :weight-plan :start)))
+                  ;; default
+                  (do
+                    (log/debug "send" [cmd param])
+                    (>!! command-in-ch [cmd param])
+                    (recur (assoc state
+                                  :last-move (if (is-move? cmd) cmd nil)
+                                  :waiting-for-user false)))))
+
+              :game
+              (let [state (update-game-state state input-message)
+                    safe-items (remove dangerous-items ((:item-map state) (pos state)))]
+                (when-not ((state :flags) :noprint)
+                  (print-game input-message state))
+
+                (cond (and ((:flags state) :autotake)
+                           (seq safe-items))
+                      (do (log/debug "autotake")
+                          (>!! command-in-ch [:take (first safe-items)])
+                          (recur (assoc state
+                                        :last-move nil
+                                        :waiting-for-user false)))
+
+                      (and (:inventory input-message)
+                           (= (:weight-plan state) :start))
+                      (do (log/debug "start weight-plan")
+                          (>!! command-in-ch [:east]) ; only east for now...
+                          (-> state
+                              (assoc :weight-plan (construct-weight-plan (:inventory input-message))
+                                     :waiting-for-user false
+                                     :last-move :east)
+                              recur))
+
+                      (and (:weight-plan state) (:room input-message) (:expect-cmd input-message))
+                      (do (log/debug "next in weight-plan: " (first (:weight-plan state)))
+                          (recur (handle-weight-plan state input-message command-in-ch)))
+
+                      (and (:weight-plan state) (or (:confirm-dropped input-message)
+                                                    (:confirm-taken input-message)))
+                      (do (log/debug "in weight-plan, moving east")
+                          (>!! command-in-ch [:east])
+                          (-> state
+                              (assoc :waiting-for-user false
+                                     :last-move :east)
+                              recur))
+                      
+                      :else
+                      (do (log/debug "repeat")
+                          (recur (assoc state
+                                        :last-move nil
+                                        :waiting-for-user (:expect-cmd input-message))))))
+
+              (do (log/warn "shouldn't be here, input-message:" input-message)
+                  (recur state))))))
+      (catch Exception e
+        (log/fatal e "Uncaught exception in game loop")))
 
     (close! command-in-ch))
+  (log/info "game over")
   "game over")
 
-
 (def program (ic/parse (get-data 2019 25)))
-(def game-input (chan))
+(def game-input (chan 30))
 (def game-thread (thread (game-controller program game-input)))
 
+(defn user-input [cmd & params]
+  (>!! game-input {:cmd cmd
+                   :params params}))
+
+(user-input :toggle :autotake)
 (do
-  (>!! game-input [:west])
-  (>!! game-input [:north])
-  (>!! game-input [:south])
-  (>!! game-input [:east])
-  (>!! game-input [:south])
-  (>!! game-input [:east])
-  (>!! game-input [:north])
-  (>!! game-input [:south])
-  (>!! game-input [:west])
-  (>!! game-input [:north])
-  (>!! game-input [:east])
-  (>!! game-input [:north])
-  (>!! game-input [:north])
-  (>!! game-input [:south])
-  (>!! game-input [:south])
-  (>!! game-input [:south])
-  (>!! game-input [:east])
-  (>!! game-input [:west])
-  (>!! game-input [:west])
-  (>!! game-input [:north])
-  (>!! game-input [:east])
-  (>!! game-input [:north]))
+  (user-input :west)
+  (user-input :north)
+  (user-input :south)
+  (user-input :east)
+  (user-input :south)
+  (user-input :east)
+  (user-input :north)
+  (user-input :south)
+  (user-input :west)
+  (user-input :north)
+  (user-input :east)
+  (user-input :north)
+  (user-input :north)
+  (user-input :south)
+  (user-input :south)
+  (user-input :south)
+  (user-input :east)
+  (user-input :west)
+  (user-input :west)
+  (user-input :north)
+  (user-input :east)
+  (user-input :north))
+
+(user-input :goto "Gift")
+(user-input :find-weight)
+(user-input :rooms)
 
 
-(>!! game-input [:south])
-(>!! game-input [:north])
-(>!! game-input [:east])
-(>!! game-input [:west])
-(>!! game-input [:inv])
-(>!! game-input [:take "coin"])
-(>!! game-input [:drop "hypercube"])
-
-(>!! game-input [:east])
-(>!! game-input [:drop "hypercube"])
-(>!! game-input [:drop "astrolabe"])
-(>!! game-input [:drop "pointer"])
-(>!! game-input [:drop "coin"])
-(>!! game-input [:drop "mug"])
-(>!! game-input [:drop "easter egg"])
-(>!! game-input [:drop "candy cane"])
+(user-input :inv)
+(user-input :drop "pointer")
+(user-input :take "easter egg")
+(user-input :east)
 
 (close! game-input)
 (<!! game-thread)
-
-
-
