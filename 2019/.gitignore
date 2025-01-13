@@ -6,3 +6,4 @@
 config
 resources
 debug.log
+.shadow-cljs
