@@ -118,10 +118,10 @@
                                     (d (apply k d (vals room-map))))
         width (inc (- max-x min-x))
         height (inc (- max-y min-y))
+
         state @game-state
         rooms (:rooms state)]
-    (debug (str "redraw " width " " height))
-    (set! (.-width canvas)  (* width  room-graphical-size))
+    (set! (.-width canvas)  (* width room-graphical-size))
     (set! (.-height canvas) (* height room-graphical-size))
     (let [ctx (.getContext canvas "2d")]
       (.fillRect ctx 0 0 (* width  room-graphical-size) (* height room-graphical-size))
@@ -145,6 +145,9 @@
       )
     )
   )
+
+(let [bb (.getBoundingClientRect (query "#game"))]
+  [(.-width bb) (.-height bb)])
 
 (defn- place-rooms-on-grid [rooms]
   ;(prn rooms)
@@ -267,6 +270,13 @@
         (.addEventListener (query "#reload-state") "click"
                            (fn [_]
                              (send-message stream {:cmd :reload})))
+        (.addEventListener (query "#game") "click"
+                           (fn [e] (let [canvas (query "#game")
+                                         bb (.getBoundingClientRect canvas)
+                                         w (.-width bb)
+                                         h (.-height bb)]
+                                     (debug (str "click: x=" (.-offsetX e)
+                                                 "y=" (int (* 11 (/ (.-offsetY e) h))))))))
         (doseq [b ["north" "east" "south" "west"]]
           (.addEventListener (query (str "#" b)) "click"
                              (fn [_] (send-message stream {:cmd (keyword b) :params []}))))))
@@ -275,4 +285,3 @@
 (defn init []
   (.addEventListener js/window "load" on-load))
 
-(map #(.-tagName %) (.-children (query "#buttons")))
